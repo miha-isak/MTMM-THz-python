@@ -219,7 +219,6 @@ def MTMM(d, lambda0, theta0, nr, ns, flag, dlimit, nk):
 if __name__ == '__main__':
     # === Setup ===
     path = os.getcwd() #current working directory
-    os.chdir('MTMM-THz-TDS') #Change the current working directory
     os.chdir('Data') #Change the current working directory
 
     # === Structural Info ===

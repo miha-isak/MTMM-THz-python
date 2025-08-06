@@ -138,7 +138,7 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
 
 
 def TM_DBR_test1(d0):
-    mat = scipy.io.loadmat(r'MTMM Python\Test copy.mat')
+    mat = scipy.io.loadmat(r'MTMM Python\Test.mat')
     lambda0 = np.array(mat['lambda0']).flatten()
     L = lambda0.size
 
@@ -248,7 +248,7 @@ E_file_sig = sample[:, 1]
 time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
 
 # === Load Data and Analytical n,k Extraction ===
-mat = scipy.io.loadmat(r'MTMM Python\Test copy.mat')
+mat = scipy.io.loadmat(r'Test source.mat')
 print(mat.keys())
 EsovEr = mat['EsovEr'].flatten()
 f = mat['f'].flatten()
