@@ -226,7 +226,7 @@ if __name__ == '__main__':
     reference = np.loadtxt(f'{samplename}_Reference.txt')
     sample = np.loadtxt(f'{samplename}_Sample.txt')
     pop_size = 10
-    maxit = 200
+    maxit = 1
 
     with open(f'{samplename}.json', 'r') as f:
         data = json.load(f)
@@ -316,9 +316,10 @@ if __name__ == '__main__':
         maxiter=maxit,
         popsize=pop_size,
         x0=initial_pop,
-        polish=True,
+        polish=False,
         disp=True,
         workers=-1,
+        callback=lambda x,d:print(x,d)
     )
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
