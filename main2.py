@@ -139,7 +139,7 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
 
 
 def TM_DBR_test1(d0):
-    mat = scipy.io.loadmat(r'D:\CCNY\Test.mat')
+    mat = scipy.io.loadmat(r'Test.mat')
     lambda0 = mat['lambda0'].flatten()
     EsovEr = mat['EsovEr'].flatten()
     d = mat['d'].flatten()
@@ -222,11 +222,11 @@ if __name__ == '__main__':
     os.chdir('Data') #Change the current working directory
 
     # === Structural Info ===
-    samplename = 'SiO2'
+    samplename = 'H2O'
     reference = np.loadtxt(f'{samplename}_Reference.txt')
     sample = np.loadtxt(f'{samplename}_Sample.txt')
-    pop_size = 100
-    maxit = 2000
+    pop_size = 10
+    maxit = 200
 
     with open(f'{samplename}.json', 'r') as f:
         data = json.load(f)
@@ -246,9 +246,9 @@ if __name__ == '__main__':
     E_file_sig = sample[:, 1]
 
 
-    mat = scipy.io.loadmat(r'D:\CCNY\Test.mat')
+    mat = scipy.io.loadmat(r'Test source.mat')
     time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
-    mat |= scipy.io.loadmat(r'D:\CCNY\Test.mat')
+    mat |= scipy.io.loadmat(r'Test.mat')
     # === Load Data and Analytical n,k Extraction ===
     print(mat.keys())
     EsovEr = mat['EsovEr'].flatten()
@@ -278,7 +278,7 @@ if __name__ == '__main__':
         n_anltic.append(n_anlt)
         k_anltic.append(k_anlt)
 
-    scipy.io.savemat(r'D:\CCNY\Test.mat', {
+    scipy.io.savemat(r'Test.mat', {
         **mat,
         'n_anltic': np.array(n_anltic),
         'k_anltic': np.array(k_anltic)
@@ -306,7 +306,7 @@ if __name__ == '__main__':
     print(nvars,L)
 
     initial_candidate = np.concatenate([n_anltic[0], -k_anltic[0], [t_smpl0]])
-    initial_pop = np.tile(initial_candidate, (pop_size, 1))
+    initial_pop = initial_candidate#np.tile(initial_candidate, (pop_size, 1))
 
     bounds = list(zip(lb, ub))
     count=0
@@ -316,11 +316,9 @@ if __name__ == '__main__':
         maxiter=maxit,
         popsize=pop_size,
         x0=initial_pop,
-        polish=False,
-        tol=0e-6,
+        polish=True,
         disp=True,
         workers=-1,
-        callback=lambda x,a:print(x)
     )
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
