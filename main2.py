@@ -164,7 +164,7 @@ def TM_DBR_test1(d0):
     return np.sum(deviations)
 
 
-def MTMM(d, lambda0, theta0, nr, ns, flag, dlimit, nk):
+def MTMM(d:np.ndarray, lambda0:np.ndarray, theta0:int, nr:float, ns:np.ndarray, flag:int, dlimit:np.ndarray, nk:np.ndarray):
     N=d.size
     t_cs = np.zeros(len(lambda0), dtype=complex)
 
@@ -178,17 +178,17 @@ def MTMM(d, lambda0, theta0, nr, ns, flag, dlimit, nk):
         else:
             n_s = nr
 
-        if isinstance(n_s, np.ndarray):
-            n_s = n_s.item()  # Ensure scalar
+        # if isinstance(n_s, np.ndarray):
+        #     n_s = n_s.item()  # Ensure scalar
 
-        #!!!
-        if isinstance(n_s, np.ndarray):
-            if n_s.size == 1:
-                n_s = n_s.item()
-            else:
-                raise ValueError(f"n_s is not scalar, shape: {n_s.shape}")
+        # #!!!
+        # if isinstance(n_s, np.ndarray):
+        #     if n_s.size == 1:
+        #         n_s = n_s.item()
+        #     else:
+        #         raise ValueError(f"n_s is not scalar, shape: {n_s.shape}")
         #Construct full refractive index profile for this lambda
-        n = nk.astype(complex).copy()
+        n = nk.astype(np.complex128).copy()
         n[idx]=n_s
 
         M_sPol=np.eye(2,dtype=complex)
@@ -203,7 +203,7 @@ def MTMM(d, lambda0, theta0, nr, ns, flag, dlimit, nk):
             ], dtype=complex)
 
             if d[c+1]>dlimit[c+1]:
-                D[0,1]=0
+                D[:,1]=0
             #Propagation matrix
             if c==0:
                 P=np.eye(2,dtype=complex)
@@ -229,7 +229,7 @@ if __name__ == '__main__':
     reference = np.loadtxt(f'{samplename}_Reference.txt')
     sample = np.loadtxt(f'{samplename}_Sample.txt')
     pop_size = 50
-    maxit = 1000
+    maxit = 100
 
     with open(f'{samplename}.json', 'r') as f:
         data = json.load(f)
@@ -305,7 +305,6 @@ if __name__ == '__main__':
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
     nvars = lb.size
-    TM_DBR_test1(lb)
     print(nvars,L)
 
     initial_candidate = np.concatenate([n_anltic[0], -k_anltic[0], [t_smpl0]])
@@ -313,6 +312,7 @@ if __name__ == '__main__':
 
     bounds = list(zip(lb, ub))
     count=0
+    TM_DBR_test1(initial_pop)
     result = differential_evolution(
         TM_DBR_test1,
         bounds,
