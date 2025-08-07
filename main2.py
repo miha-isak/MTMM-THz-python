@@ -123,7 +123,7 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
     delta_phi = delta_phi[::-1]
     lambda0 = (c / f) * 1e9
 
-    scipy.io.savemat(r'D:\CCNY\Test.mat', {
+    scipy.io.savemat(r'Test.mat', {
         'EsovEr': EsovEr,
         'f': f,
         'E_sam': E_sam,
@@ -137,7 +137,7 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
         'dT': dT
     })
 
-
+tm_count=0
 def TM_DBR_test1(d0):
     mat = scipy.io.loadmat(r'Test.mat')
     lambda0 = mat['lambda0'].flatten()
@@ -158,6 +158,9 @@ def TM_DBR_test1(d0):
     t_cs_sam = MTMM(d, lambda0, 0, nr, ns, 1, dlimit, nk)
 
     deviations = np.abs(EsovEr - (t_cs_sam / t_cs_ref))
+    # global tm_count
+    # tm_count+=11
+    # if tm_count%10==0:print('hello',tm_count)
     return np.sum(deviations)
 
 
@@ -225,8 +228,8 @@ if __name__ == '__main__':
     samplename = 'H2O'
     reference = np.loadtxt(f'{samplename}_Reference.txt')
     sample = np.loadtxt(f'{samplename}_Sample.txt')
-    pop_size = 10
-    maxit = 1
+    pop_size = 50
+    maxit = 1000
 
     with open(f'{samplename}.json', 'r') as f:
         data = json.load(f)
@@ -319,7 +322,6 @@ if __name__ == '__main__':
         polish=False,
         disp=True,
         workers=-1,
-        callback=lambda x,d:print(x,d)
     )
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
@@ -329,8 +331,8 @@ if __name__ == '__main__':
     k=-d0_opt[L:2*L]
     # Plotting the real part (n_anltic)
     plt.figure()
-    plt.plot(f, n, label='n (real part)', linewidth=3)
-    plt.plot(f, k, label='k (imaginary part)', linewidth=3)
+    plt.plot(f, n, label='n (real part)', **plot_opts)
+    plt.plot(f, k, label='k (imaginary part)', **plot_opts)
     plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.ylabel('Refractive Index', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
