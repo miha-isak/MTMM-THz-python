@@ -3,17 +3,34 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io
+import numpy.typing as npt
 from scipy.optimize import differential_evolution
+import os
 
-def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
+def time2freq(t_ref:npt.NDArray, E_ref:npt.NDArray, t_sam:npt.NDArray, E_sam:npt.NDArray, minTHz:float, maxTHz:float):
+    '''
+
+
+    t_ref, E_ref: Time & electric field for reference signal.
+    t_sam, E_sam: Same for sample.
+    minTHz, maxTHz: Frequency bounds(in Tera Hertz) to analyze.
+    return:
+    f: frequency vector.
+    delta_phi: corrected phase difference.
+    dT: total scan duration
+    lambda0: wavelengths.
+
+    dtpeaks: time shift between peaks.
+    E_ref, E_sam: FFT of signals in frequency domain.
+    '''
     # Align to zero
-    t_ref = t_ref - np.min(t_ref)
-    t_sam = t_sam - np.min(t_sam)
+    t_ref:npt.NDArray = t_ref - np.min(t_ref)
+    t_sam:npt.NDArray = t_sam - np.min(t_sam)
 
     # Plot time-domain signals
     plt.figure()
-    plt.plot(t_ref, E_ref, linewidth=3, label='E_{Reference}')
-    plt.plot(t_sam, E_sam, linewidth=3, label='E_{Reference}')
+    plt.plot(t_ref, E_ref, linewidth=3, label='E_Reference')
+    plt.plot(t_sam, E_sam, linewidth=3, label='E_Sample')
     plt.legend(prop={'weight':'bold', 'family':'Cambria'})
     plt.grid(False)  # turn off grid
     # plt.tight_layout()
@@ -26,78 +43,79 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
 
 
     # Common time grid
-    t_min = min(np.min(t_ref), np.min(t_sam))
-    t_max = max(np.max(t_ref), np.max(t_sam))
-    num_points = max(len(t_ref), len(t_sam))
-    time = np.linspace(t_min, t_max, num_points)
-
+    t_min:float = min(np.min(t_ref), np.min(t_sam))
+    t_max:float = max(np.max(t_ref), np.max(t_sam))
+    num_points:int = max(len(t_ref), len(t_sam))
+    time:npt.NDArray = np.linspace(t_min, t_max, num_points)
     # Frequency bounds (Hz)
-    f_min = minTHz * 1e12
-    f_max = maxTHz * 1e12
+    f_min:float = minTHz * 1e12
+    f_max:float = maxTHz * 1e12
 
     # Pulse maxima
-    idx_ref = np.argmax(E_ref)
-    idx_sam = np.argmax(E_sam)
-    t0r = time[idx_ref]
-    t0s = time[idx_sam]
-    dtpeaks = t0s - t0r
-    dtmin = dtpeaks
-    dT = t_max - t_min
+    idx_ref:np.int64 = np.argmax(E_ref)
+    idx_sam:np.int64 = np.argmax(E_sam)
+    t0r:float = time[idx_ref]
+    t0s:float = time[idx_sam]
+    dtpeaks:float = t0s - t0r
+    dtmin:float = dtpeaks
+    dT:float = t_max - t_min
 
     # FFT parameters
-    N = len(time)
-    dt = time[1] - time[0]
-    Fs = 1 / dt
-    N_pad = N  # pad_factor = 1
+    N:int = len(time)
+    
+    dt:float = time[1] - time[0]
+    '''time step'''
+    Fs:float = 1 / dt
+    N_pad:int = N  # pad_factor = 1
 
-    E_ref_padded = np.concatenate([E_ref, np.zeros(N_pad - N)])
-    E_sam_padded = np.concatenate([E_sam, np.zeros(N_pad - N)])
+    E_ref_padded:npt.NDArray = np.concatenate([E_ref, np.zeros(N_pad - N)])
+    E_sam_padded:npt.NDArray = np.concatenate([E_sam, np.zeros(N_pad - N)])
 
-    f_full = Fs * np.arange(0, N_pad // 2 + 1) / N_pad
-    omega_full = 2 * np.pi * f_full
+    f_full:npt.NDArray = Fs * np.arange(0, N_pad // 2 + 1) / N_pad
+    omega_full:npt.NDArray = 2 * np.pi * f_full
 
-    E_ref_fft = np.fft.fft(E_ref_padded)
-    E_sam_fft = np.fft.fft(E_sam_padded)
+    E_ref_fft:npt.NDArray[np.complex128] = np.fft.fft(E_ref_padded)
+    E_sam_fft:npt.NDArray[np.complex128] = np.fft.fft(E_sam_padded)
 
-    E_ref = E_ref_fft[:len(f_full)]
-    E_sam = E_sam_fft[:len(f_full)]
+    E_ref:npt.NDArray[np.complex128] = E_ref_fft[:len(f_full)]
+    E_sam:npt.NDArray[np.complex128] = E_sam_fft[:len(f_full)]
 
     # Frequency filter
-    mask = (f_full >= f_min) & (f_full <= f_max)
-    f = f_full[mask]
-    omega = omega_full[mask]
-    E_ref = E_ref[mask]
-    E_sam = E_sam[mask]
+    mask:npt.NDArray[np.bool] = (f_full >= f_min) & (f_full <= f_max)
+    f:npt.NDArray = f_full[mask]
+    omega:npt.NDArray = omega_full[mask]
+    E_ref:npt.NDArray = E_ref[mask]
+    E_sam:npt.NDArray = E_sam[mask]
 
     # Reduced phase
-    phi0_ref = omega * t0r
-    phi0_sam = omega * t0s
-    phi_red_ref = np.angle(E_ref * np.exp(-1j * phi0_ref))
-    phi_red_sam = np.angle(E_sam * np.exp(-1j * phi0_sam))
+    phi0_ref:npt.NDArray = omega * t0r
+    phi0_sam:npt.NDArray = omega * t0s
+    phi_red_ref:npt.NDArray = np.angle(E_ref * np.exp(-1j * phi0_ref))
+    phi_red_sam:npt.NDArray = np.angle(E_sam * np.exp(-1j * phi0_sam))
 
     # Unwrapped phase difference
-    delta_phi_star_0 = np.unwrap(phi_red_sam - phi_red_ref)
+    delta_phi_star_0:npt.NDArray = np.unwrap(phi_red_sam - phi_red_ref)
 
     # Linear fit to center region
-    center_fraction = 0.5
-    N_center = int(np.round(len(f) * center_fraction))
-    start_idx = int(np.round((len(f) - N_center) / 2))
-    center_idx = np.arange(start_idx, start_idx + N_center)
+    center_fraction:float = 0.5
+    N_center:int = int(np.round(len(f) * center_fraction))
+    start_idx:int = int(np.round((len(f) - N_center) / 2))
+    center_idx:npt.NDArray[np.int64] = np.arange(start_idx, start_idx + N_center)
 
-    omega_center = omega[center_idx]
-    delta_phi_center = delta_phi_star_0[center_idx]
-    p = np.polyfit(omega_center, delta_phi_center, 1)
-    B = p[1]
-    delta_phi_0 = delta_phi_star_0 - 2 * np.pi * np.round(B / (2 * np.pi))
+    omega_center:npt.NDArray = omega[center_idx]
+    delta_phi_center:npt.NDArray = delta_phi_star_0[center_idx]
+    p:npt.NDArray = np.polyfit(omega_center, delta_phi_center, 1)
+    B:np.float64 = p[1]
+    delta_phi_0:npt.NDArray[np.float64] = delta_phi_star_0 - 2 * np.pi * np.round(B / (2 * np.pi))
 
     # Final corrected phase
-    phi_offset = 0
-    delta_phi = -1 * (delta_phi_0 - phi0_ref + phi0_sam + phi_offset)
+    phi_offset:float = 0
+    delta_phi:npt.NDArray = -1 * (delta_phi_0 - phi0_ref + phi0_sam + phi_offset)
 
     # Plot FFT magnitude
     plt.figure()
-    plt.plot(f, np.log10(np.abs(E_ref)), linewidth=3, label='E_{Reference}')
-    plt.plot(f, np.log10(np.abs(E_sam)), linewidth=3, label='E_{Sample}')
+    plt.plot(f, np.log10(np.abs(E_ref)), linewidth=3, label='E_Reference')
+    plt.plot(f, np.log10(np.abs(E_sam)), linewidth=3, label='E_Sample')
     #plt.title('One-sided Fourier Transform')
     plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
@@ -123,29 +141,42 @@ def time2freq(t_ref, E_ref, t_sam, E_sam, minTHz, maxTHz):
     delta_phi = delta_phi[::-1]
     lambda0 = (c / f) * 1e9
 
-    scipy.io.savemat(r'Test.mat', {
+    # scipy.io.savemat(r'Test.mat', {
+    #     'EsovEr': EsovEr,
+    #     'f': f,
+    #     'E_sam': E_sam,
+    #     'E_ref': E_ref,
+    #     'delta_phi': delta_phi,
+    #     'lambda0': lambda0,
+    #     'dtpeaks': dtpeaks,
+    #     't0s': t0s,
+    #     't0r': t0r,
+    #     'dtmin': dtmin,
+    #     'dT': dT
+    # })
+    return {
         'EsovEr': EsovEr,
         'f': f,
-        'E_sam': E_sam,
-        'E_ref': E_ref,
+        # 'E_sam': E_sam,
+        # 'E_ref': E_ref,
         'delta_phi': delta_phi,
         'lambda0': lambda0,
         'dtpeaks': dtpeaks,
-        't0s': t0s,
-        't0r': t0r,
-        'dtmin': dtmin,
+        # 't0s': t0s,
+        # 't0r': t0r,
+        # 'dtmin': dtmin,
         'dT': dT
-    })
+    }
 
-tm_count=0
-def TM_DBR_test1(d0):
-    mat = scipy.io.loadmat(r'Test.mat')
-    lambda0 = mat['lambda0'].flatten()
-    EsovEr = mat['EsovEr'].flatten()
-    d = mat['d'].flatten()
-    dlimit = mat['dlimit'].flatten()
-    nk = mat['nk'].flatten()
-    nr = float(mat['nr'].flatten()[0])
+
+def TM_DBR_test1(d0,lambda0:npt.NDArray,EsovEr:npt.NDArray,d:npt.NDArray,dlimit:npt.NDArray,nk:npt.NDArray,nr:float):
+    # mat = scipy.io.loadmat(r'Test.mat')
+    # lambda0 = mat['lambda0'].flatten()
+    # EsovEr = mat['EsovEr'].flatten()
+    # d = mat['d'].flatten()
+    # dlimit = mat['dlimit'].flatten()
+    # nk = mat['nk'].flatten()
+    # nr = float(mat['nr'].flatten()[0])
 
     L = len(lambda0)
     ns = d0[:L] + 1j * d0[L:2*L]
@@ -158,13 +189,10 @@ def TM_DBR_test1(d0):
     t_cs_sam = MTMM(d, lambda0, 0, nr, ns, 1, dlimit, nk)
 
     deviations = np.abs(EsovEr - (t_cs_sam / t_cs_ref))
-    # global tm_count
-    # tm_count+=11
-    # if tm_count%10==0:print('hello',tm_count)
     return np.sum(deviations)
 
 
-def MTMM(d:np.ndarray, lambda0:np.ndarray, theta0:int, nr:float, ns:np.ndarray, flag:int, dlimit:np.ndarray, nk:np.ndarray):
+def MTMM(d:npt.NDArray, lambda0:npt.NDArray, theta0:int, nr:float, ns:npt.NDArray, flag:int, dlimit:npt.NDArray, nk:npt.NDArray):
     N=d.size
     t_cs = np.zeros(len(lambda0), dtype=complex)
 
@@ -178,11 +206,11 @@ def MTMM(d:np.ndarray, lambda0:np.ndarray, theta0:int, nr:float, ns:np.ndarray, 
         else:
             n_s = nr
 
-        # if isinstance(n_s, np.ndarray):
+        # if isinstance(n_s, npt.NDArray):
         #     n_s = n_s.item()  # Ensure scalar
 
         # #!!!
-        # if isinstance(n_s, np.ndarray):
+        # if isinstance(n_s, npt.NDArray):
         #     if n_s.size == 1:
         #         n_s = n_s.item()
         #     else:
@@ -228,8 +256,9 @@ if __name__ == '__main__':
     samplename = 'H2O'
     reference = np.loadtxt(f'{samplename}_Reference.txt')
     sample = np.loadtxt(f'{samplename}_Sample.txt')
-    pop_size = 50
-    maxit = 100
+    pop_size = 1
+    maxit = 1000
+    c = 299792458
 
     with open(f'{samplename}.json', 'r') as f:
         data = json.load(f)
@@ -247,21 +276,19 @@ if __name__ == '__main__':
     E_file_ref = reference[:, 1]
     t_file_sig = sample[:, 0] * 1e-12
     E_file_sig = sample[:, 1]
+    
 
-
-    mat = scipy.io.loadmat(r'Test source.mat')
-    time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
-    mat |= scipy.io.loadmat(r'Test.mat')
+    # mat = scipy.io.loadmat(r'source.mat')
+    tmp=time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
+    # mat = scipy.io.loadmat(r'Test.mat')
     # === Load Data and Analytical n,k Extraction ===
-    print(mat.keys())
-    EsovEr = mat['EsovEr'].flatten()
-    f = mat['f'].flatten()
-    delta_phi = mat['delta_phi'].flatten()
-    dtpeaks = mat['dtpeaks'].flatten()[0]
-    dT = mat['dT'].flatten()[0]
-
-    c = 299792458
-    L = np.array(mat['lambda0']).size
+    EsovEr = tmp['EsovEr'].flatten()
+    f = tmp['f'].flatten()
+    delta_phi = tmp['delta_phi'].flatten()
+    dtpeaks = tmp['dtpeaks'].flatten()[0]
+    dT = tmp['dT'].flatten()[0]
+    lambda0=tmp['lambda0']
+    L = np.array(lambda0).size
     nn0 = 1 + c * dtpeaks / (t_smpl0 * 1e-9)
     neff = nk.copy()
     neff[np.isnan(neff)] = nn0
@@ -281,11 +308,11 @@ if __name__ == '__main__':
         n_anltic.append(n_anlt)
         k_anltic.append(k_anlt)
 
-    scipy.io.savemat(r'Test.mat', {
-        **mat,
-        'n_anltic': np.array(n_anltic),
-        'k_anltic': np.array(k_anltic)
-    })
+    # scipy.io.savemat(r'Test.mat', {
+    #     **mat,
+    #     'n_anltic': np.array(n_anltic),
+    #     'k_anltic': np.array(k_anltic)
+    # })
 
     n_anltic = np.array(n_anltic)
     k_anltic = np.array(k_anltic)
@@ -305,23 +332,28 @@ if __name__ == '__main__':
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
     nvars = lb.size
-    print(nvars,L)
 
     initial_candidate = np.concatenate([n_anltic[0], -k_anltic[0], [t_smpl0]])
     initial_pop = initial_candidate#np.tile(initial_candidate, (pop_size, 1))
 
     bounds = list(zip(lb, ub))
-    count=0
-    TM_DBR_test1(initial_pop)
+    args=(
+        lambda0.flatten(),
+        EsovEr.flatten(),
+        np.array(d).flatten(),
+        dlimit.flatten(),
+        nk.flatten(),
+        float(nr))
     result = differential_evolution(
-        TM_DBR_test1,
-        bounds,
+        func=TM_DBR_test1,
+        args=args,
+        bounds=bounds,
         maxiter=maxit,
         popsize=pop_size,
         x0=initial_pop,
         polish=False,
         disp=True,
-        workers=-1,
+        workers=1,
     )
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
@@ -330,6 +362,9 @@ if __name__ == '__main__':
     n=d0_opt[:L]
     k=-d0_opt[L:2*L]
     # Plotting the real part (n_anltic)
+    if not os.path.exists('result'):
+        os.mkdir('result')
+    scipy.io.savemat(f'result/{samplename}_Results.mat',{'d0':d0_opt})
     plt.figure()
     plt.plot(f, n, label='n (real part)', **plot_opts)
     plt.plot(f, k, label='k (imaginary part)', **plot_opts)
