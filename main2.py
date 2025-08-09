@@ -261,20 +261,13 @@ def MTMM(d:npt.NDArray,
     return t_cs
 
 
-if __name__ == '__main__':
-    # === Setup ===
-    path:str = os.getcwd() #current working directory
-    os.chdir('Data') #Change the current working directory
-
+def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     # === Structural Info ===
-    samplename:str = 'H2O'
-    reference:npt.NDArray[np.floating] = np.loadtxt(f'{samplename}_Reference.txt')
-    sample:npt.NDArray[np.floating]  = np.loadtxt(f'{samplename}_Sample.txt')
-    pop_size:int = 1
-    maxit:int = 1000
+    reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data\{sample_name}_Reference.txt')
+    sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data\{sample_name}_Sample.txt')
     c:float = 299792458#speed of light
 
-    with open(f'{samplename}.json', 'r') as file:
+    with open(fr'Data\{sample_name}.json', 'r') as file:
         data:dict = json.load(file)
 
     nr:float = float(data["settings"]["calibration_index"])
@@ -285,16 +278,15 @@ if __name__ == '__main__':
     t_smpl0 = float(d[np.where(np.isnan(nk))[0][0]])
 
     # === Time-domain to Frequency-domain ===
-    os.chdir(path)
     t_file_ref = reference[:, 0] * 1e-12
     E_file_ref = reference[:, 1]
     t_file_sig = sample[:, 0] * 1e-12
     E_file_sig = sample[:, 1]
     
 
-    # mat = scipy.io.loadmat(r'source.mat')
-    tmp:dict[str,npt.NDArray] = time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
-    # mat = scipy.io.loadmat(r'Test.mat')
+
+    tmp:dict[str,npt.NDArray|float] = time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
+
     # === Load Data and Analytical n,k Extraction ===
     EsovEr:npt.NDArray[np.floating]    = tmp['EsovEr'].flatten()
     f:npt.NDArray[np.floating]         = tmp['f'].flatten()
@@ -308,18 +300,18 @@ if __name__ == '__main__':
     neff[np.isnan(neff)] = nn0
     dlimit = (c * dT / (2 * neff)) * 1e9
 
-    PH = np.arange(6)
-    delta_phi_values = 2 * np.pi * np.floor((PH + 1) / 2) * (-1) ** PH
+    ph = np.arange(6)
+    delta_phi_values = 2 * np.pi * np.floor((ph + 1) / 2) * (-1) ** ph
 
-    n_anltic_list:list[npt.NDArray[np.floating]] = []
-    k_anltic_list:list[npt.NDArray[np.floating]] = []
+    n_anltic_list:list[npt.NDArray[np.complexfloating]] = []
+    k_anltic_list:list[npt.NDArray[np.complexfloating]] = []
 
     for delta_add in delta_phi_values:
         delta_add:float
         delta_phi2 = delta_phi + delta_add
-        n_anlt = nr + c * delta_phi2 / (2 * np.pi * f * t_smpl0 * 1e-9)
+        n_anlt = (nr + c * delta_phi2 / (2 * np.pi * f * t_smpl0 * 1e-9)).astype(complex)
         constnt = (4 * n_anlt * nr) / ((np.abs(EsovEr) * (n_anlt + nr)**2))
-        k_anlt = (c / (2 * np.pi * f * t_smpl0 * 1e-9)) * np.log(np.abs(constnt))
+        k_anlt = (c / (2 * np.pi * f * t_smpl0 * 1e-9)) * np.log(constnt.astype(complex))
         n_anltic_list.append(n_anlt)
         k_anltic_list.append(k_anlt)
 
@@ -329,13 +321,13 @@ if __name__ == '__main__':
     #     'k_anltic': np.array(k_anltic)
     # })
 
+
     n_anltic = np.array(n_anltic_list)
     k_anltic = np.array(k_anltic_list)
 
-    nhalf:npt.NDArray[np.floating] = np.array([(n_anltic[0,:] + n_anltic[1,:]) / 2,
-            (n_anltic[0,:] + n_anltic[2,:]) / 2])
-    khalf:npt.NDArray[np.floating] = -np.array([(k_anltic[0,:] + k_anltic[1,:]) / 2,
-            (k_anltic[0,:] + k_anltic[2,:]) / 2])
+    nhalf:npt.NDArray[np.complexfloating] = np.array([(n_anltic[0] + n_anltic[1]) / 2,
+            (n_anltic[0] + n_anltic[2]) / 2])
+    
     lb:npt.NDArray[np.floating] = np.concatenate([
         np.min(np.real(nhalf),axis=0),                                # scalar → 1D
         -2 * np.max(np.abs(k_anltic)) * np.ones(l),              # already 1D
@@ -346,10 +338,9 @@ if __name__ == '__main__':
         np.zeros(l),              # already 1D
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
-    nvars:int = lb.size
-
-    initial_pop:npt.NDArray[np.floating] = np.concatenate([n_anltic[0], -k_anltic[0], [t_smpl0]])
-
+    initial_pop:npt.NDArray[np.floating] = np.concatenate([np.real(n_anltic[0]), np.real(-k_anltic[0]), [t_smpl0]])
+    print(len(initial_pop))
+    np.clip(initial_pop,lb,ub,initial_pop)
     bounds = list(zip(lb, ub))
     args=(
         lambda0.flatten(),
@@ -371,22 +362,52 @@ if __name__ == '__main__':
     )
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
-    axis_opts = {'FontSize':14, 'FontWeight':'bold', 'LineWidth': 1.5}
-    fig_opts = {'Units':'Inches', 'Position':[1, 1, 6, 4]}
     n=d0_opt[:l]
     k=-d0_opt[l:2*l]
     # Plotting the real part (n_anltic)
     if not os.path.exists('result'):
         os.mkdir('result')
-    scipy.io.savemat(f'result/{samplename}_Results.mat',{'d0':d0_opt})
-    plt.figure()
-    plt.plot(f, n, label='n (real part)', **plot_opts)
-    plt.plot(f, k, label='k (imaginary part)', **plot_opts)
-    plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
-    plt.ylabel('Refractive Index', fontsize=16, fontweight='bold', fontname='Cambria')
-    plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    plt.legend(prop={'weight':'bold', 'family':'Cambria'})
-    plt.grid(False)  # turn off grid
+    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'d0':d0_opt})
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+    axs[0].plot(f, n, **plot_opts)
+    axs[0].set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
+    axs[0].set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
+    axs[0].tick_params(axis='both', labelsize=12)
+    for spine in axs[0].spines.values():
+        spine.set_linewidth(1.5)
+
+    axs[1].plot(f, k, **plot_opts)
+    axs[1].set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
+    axs[1].set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
+    axs[1].tick_params(axis='both', labelsize=12)
+    for spine in axs[1].spines.values():
+        spine.set_linewidth(1.5)
+
     plt.tight_layout()
+    fig.subplots_adjust(wspace=0.3)
+
+    plt.savefig(f'result/{sample_name}_Results.png', dpi=300, bbox_inches='tight')
+
     plt.show()
+    # plt.figure()
+    # plt.plot(f, n, label='n (real part)', **plot_opts)
+    # plt.plot(f, k, label='k (imaginary part)', **plot_opts)
+    # plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
+    # plt.ylabel('Refractive Index', fontsize=16, fontweight='bold', fontname='Cambria')
+    # plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
+    # plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
+    # plt.legend(prop={'weight':'bold', 'family':'Cambria'})
+    # plt.grid(False)  # turn off grid
+    # plt.tight_layout()
+    # plt.show()
+
+
+
+if __name__ == '__main__':
+    main(sample_name='CF',
+        pop_size=2,
+        maxit=2000)
+#TODO: do PA6
+
