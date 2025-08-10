@@ -263,11 +263,11 @@ def MTMM(d:npt.NDArray,
 
 def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     # === Structural Info ===
-    reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data\{sample_name}_Reference.txt')
-    sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data\{sample_name}_Sample.txt')
+    reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data/{sample_name}_Reference.txt')
+    sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data/{sample_name}_Sample.txt')
     c:float = 299792458#speed of light
 
-    with open(fr'Data\{sample_name}.json', 'r') as file:
+    with open(fr'Data/{sample_name}.json', 'r') as file:
         data:dict = json.load(file)
 
     nr:float = float(data["settings"]["calibration_index"])
@@ -356,10 +356,12 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
         maxiter=maxit,
         popsize=pop_size,
         x0=initial_pop,
+        tol=0.0001,
         polish=False,
         disp=True,
-        workers=1,
+        workers=-1,
     )
+    print(result.message)
     d0_opt = result.x
     plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
     n=d0_opt[:l]
@@ -406,8 +408,8 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
 
 
 if __name__ == '__main__':
-    main(sample_name='CF',
-        pop_size=2,
-        maxit=2000)
+    main(sample_name='PA6',
+        pop_size=1,
+        maxit=10000)
 #TODO: do PA6
 
