@@ -4,8 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.io
 import numpy.typing as npt
-from scipy.optimize import differential_evolution
+from scipy.optimize._differentialevolution import DifferentialEvolutionSolver
+from scipy.optimize import _differentialevolution
+from scipy import optimize
 import os
+import warnings
+import tqdm
 
 def time2freq(t_ref:npt.NDArray,
               E_ref:npt.NDArray,
@@ -259,6 +263,179 @@ def MTMM(d:npt.NDArray,
         #Transmission coefficient
         t_cs[a] = 1 / M_sPol[0, 0]
     return t_cs
+
+
+class Solver(DifferentialEvolutionSolver):
+   def solve(self):
+        """
+        Runs the DifferentialEvolutionSolver.
+
+        Returns
+        -------
+        res : OptimizeResult
+            The optimization result represented as a `OptimizeResult` object.
+            Important attributes are: ``x`` the solution array, ``success`` a
+            Boolean flag indicating if the optimizer exited successfully,
+            ``message`` which describes the cause of the termination,
+            ``population`` the solution vectors present in the population, and
+            ``population_energies`` the value of the objective function for
+            each entry in ``population``.
+            See `OptimizeResult` for a description of other attributes. If
+            `polish` was employed, and a lower minimum was obtained by the
+            polishing, then OptimizeResult also contains the ``jac`` attribute.
+            If the eventual solution does not satisfy the applied constraints
+            ``success`` will be `False`.
+        """
+        nit, warning_flag = 0, False
+        status_message = _differentialevolution._status_message['success']
+
+        # The population may have just been initialized (all entries are
+        # np.inf). If it has you have to calculate the initial energies.
+        # Although this is also done in the evolve generator it's possible
+        # that someone can set maxiter=0, at which point we still want the
+        # initial energies to be calculated (the following loop isn't run).
+        if np.all(np.isinf(self.population_energies)):
+            self.feasible, self.constraint_violation = (
+                self._calculate_population_feasibilities(self.population))
+
+            # only work out population energies for feasible solutions
+            self.population_energies[self.feasible] = (
+                self._calculate_population_energies(
+                    self.population[self.feasible]))
+
+            self._promote_lowest_energy()
+
+        # do the optimization.
+        for nit in tqdm.tqdm(range(1, self.maxiter + 1)):
+            # evolve the population by a generation
+            try:
+                next(self)
+            except StopIteration:
+                warning_flag = True
+                if self._nfev > self.maxfun:
+                    status_message = _differentialevolution._status_message['maxfev']
+                elif self._nfev == self.maxfun:
+                    status_message = ('Maximum number of function evaluations'
+                                      ' has been reached.')
+                break
+
+            if self.disp:
+                print(f"differential_evolution step {nit}: f(x)="
+                      f" {self.population_energies[0]}",
+                      f"average {np.average(self.population_energies)}"
+                      )
+
+            if self.callback:
+                c = self.tol / (self.convergence + _differentialevolution._MACHEPS)
+                res = self._result(nit=nit, message="in progress")
+                res.convergence = c
+                try:
+                    warning_flag = bool(self.callback(res))
+                except StopIteration:
+                    warning_flag = True
+
+                if warning_flag:
+                    status_message = 'callback function requested stop early'
+
+            # should the solver terminate?
+            if warning_flag or self.converged():
+                break
+
+        else:
+            status_message = _differentialevolution._status_message['maxiter']
+            warning_flag = True
+
+        DE_result = self._result(
+            nit=nit, message=status_message, warning_flag=warning_flag
+        )
+
+        if self.polish and not np.all(self.integrality):
+            # can't polish if all the parameters are integers
+            if np.any(self.integrality):
+                # set the lower/upper bounds equal so that any integrality
+                # constraints work.
+                limits, integrality = self.limits, self.integrality
+                limits[0, integrality] = DE_result.x[integrality]
+                limits[1, integrality] = DE_result.x[integrality]
+
+            polish_method = 'L-BFGS-B'
+
+            if self._wrapped_constraints:
+                polish_method = 'trust-constr'
+
+                constr_violation = self._constraint_violation_fn(DE_result.x)
+                if np.any(constr_violation > 0.):
+                    warnings.warn("differential evolution didn't find a "
+                                  "solution satisfying the constraints, "
+                                  "attempting to polish from the least "
+                                  "infeasible solution",
+                                  UserWarning, stacklevel=2)
+            if self.disp:
+                print(f"Polishing solution with '{polish_method}'")
+            result = optimize.minimize(self.func,
+                              np.copy(DE_result.x),
+                              method=polish_method,
+                              bounds=self.limits.T,
+                              constraints=self.constraints)
+
+            self._nfev += result.nfev
+            DE_result.nfev = self._nfev
+
+            # Polishing solution is only accepted if there is an improvement in
+            # cost function, the polishing was successful and the solution lies
+            # within the bounds.
+            if (result.fun < DE_result.fun and
+                    result.success and
+                    np.all(result.x <= self.limits[1]) and
+                    np.all(self.limits[0] <= result.x)):
+                DE_result.fun = result.fun
+                DE_result.x = result.x
+                DE_result.jac = result.jac
+                # to keep internal state consistent
+                self.population_energies[0] = result.fun
+                self.population[0] = self._unscale_parameters(result.x)
+
+        if self._wrapped_constraints:
+            DE_result.constr = [c.violation(DE_result.x) for
+                                c in self._wrapped_constraints]
+            DE_result.constr_violation = np.max(
+                np.concatenate(DE_result.constr))
+            DE_result.maxcv = DE_result.constr_violation
+            if DE_result.maxcv > 0:
+                # if the result is infeasible then success must be False
+                DE_result.success = False
+                DE_result.message = ("The solution does not satisfy the "
+                                     f"constraints, MAXCV = {DE_result.maxcv}")
+
+        return DE_result
+
+
+def differential_evolution(func, bounds, args=(), strategy='best1bin',
+                           maxiter=1000, popsize=15, tol=0.01,
+                           mutation=(0.5, 1), recombination=0.7, seed=None,
+                           callback=None, disp=False, polish=True,
+                           init='latinhypercube', atol=0, updating='immediate',
+                           workers=1, constraints=(), x0=None, *,
+                           integrality=None, vectorized=False):
+    rng=np.random.default_rng(seed)
+    with Solver(func, bounds, args=args,
+                                     strategy=strategy,
+                                     maxiter=maxiter,
+                                     popsize=popsize, tol=tol,
+                                     mutation=mutation,
+                                     recombination=recombination,
+                                     rng=rng, polish=polish,
+                                     callback=callback,
+                                     disp=disp, init=init, atol=atol,
+                                     updating=updating,
+                                     workers=workers,
+                                     constraints=constraints,
+                                     x0=x0,
+                                     integrality=integrality,
+                                     vectorized=vectorized) as solver:
+        ret = solver.solve()
+
+    return ret
 
 
 def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
