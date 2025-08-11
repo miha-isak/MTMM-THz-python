@@ -556,15 +556,16 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
 
     fig, ax = plt.subplots(figsize=(6, 5))
 
-    ax.plot(f, n)
+    ax.plot(f, n,color='blue', label="n")
     ax.set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
     ax.set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
     ax.tick_params(axis='both', labelsize=12)
+    plt.legend(loc="upper right")
     for spine in ax.spines.values():
         spine.set_linewidth(1)
 
     ax_right = ax.twinx()
-    ax_right.plot(f, k,color='orange')
+    ax_right.plot(f, k,color='orange',label="k")
     ax_right.set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
     ax_right.tick_params(axis='both', labelsize=12)
     for spine in ax_right.spines.values():
@@ -573,13 +574,15 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     plt.tight_layout()
     ax.grid(True, axis='both')
     ax_right.grid(False)
+    lines_ax, labels_ax = ax.get_legend_handles_labels()
+    lines_right, labels_right = ax_right.get_legend_handles_labels()
+    ax.legend(lines_ax + lines_right, labels_ax + labels_right, loc="upper right")
     plt.savefig(f'result/{sample_name}_Results.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
-
-
 if __name__ == '__main__':
-    main(sample_name='H2O',
-        pop_size=1,
+    main(sample_name='PTFE',
+        pop_size=4,
         maxit=2000)
+#TODO: element titles
