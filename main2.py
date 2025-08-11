@@ -546,7 +546,7 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     # Plotting the real part (n_anltic)
     if not os.path.exists('result'):
         os.mkdir('result')
-    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'d0':d0_opt})
+    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'n':n+1j*k,'f':f})
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 5))
 
@@ -585,8 +585,8 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
 
 
 if __name__ == '__main__':
-    main(sample_name='PA6',
+    main(sample_name='H2O',
         pop_size=1,
-        maxit=10000)
+        maxit=1000)
 #TODO: do PA6
 
