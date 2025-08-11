@@ -39,7 +39,7 @@ def time2freq(t_ref:npt.NDArray,
     plt.plot(t_ref, E_ref, linewidth=3, label='E_Reference')
     plt.plot(t_sam, E_sam, linewidth=3, label='E_Sample')
     plt.legend(prop={'weight':'bold', 'family':'Cambria'})
-    plt.grid(False)  # turn off grid
+    plt.grid(True)
     # plt.tight_layout()
     # plt.show()
     plt.xlabel('Time (sec)', fontsize=16, fontweight='bold', fontname='Cambria')
@@ -127,7 +127,7 @@ def time2freq(t_ref:npt.NDArray,
     plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.legend()
-    plt.grid(False)
+    plt.grid(True)
 
     # Plot phase difference
     plt.figure()
@@ -546,29 +546,28 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     # Plotting the real part (n_anltic)
     if not os.path.exists('result'):
         os.mkdir('result')
-    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'n':n+1j*k,'f':f})
+    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'d0':d0_opt})
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(6, 5))
 
-    axs[0].plot(f, n, **plot_opts)
-    axs[0].set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
-    axs[0].set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
-    axs[0].tick_params(axis='both', labelsize=12)
-    for spine in axs[0].spines.values():
-        spine.set_linewidth(1.5)
+    ax.plot(f, n)
+    ax.set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
+    ax.set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
+    ax.tick_params(axis='both', labelsize=12)
+    for spine in ax.spines.values():
+        spine.set_linewidth(3)
 
-    axs[1].plot(f, k, **plot_opts)
-    axs[1].set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
-    axs[1].set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
-    axs[1].tick_params(axis='both', labelsize=12)
-    for spine in axs[1].spines.values():
-        spine.set_linewidth(1.5)
+    ax_right = ax.twinx()
+    ax_right.plot(f, k,color='orange')
+    ax_right.set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
+    ax_right.tick_params(axis='both', labelsize=12)
+    for spine in ax_right.spines.values():
+        spine.set_linewidth(3)
 
     plt.tight_layout()
-    fig.subplots_adjust(wspace=0.3)
-
+    ax.grid(True, axis='both', which='both')
+    ax_right.grid(False)
     plt.savefig(f'result/{sample_name}_Results.png', dpi=300, bbox_inches='tight')
-
     plt.show()
     # plt.figure()
     # plt.plot(f, n, label='n (real part)', **plot_opts)
@@ -587,6 +586,6 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
 if __name__ == '__main__':
     main(sample_name='H2O',
         pop_size=1,
-        maxit=1000)
+        maxit=10)
 #TODO: do PA6
 
