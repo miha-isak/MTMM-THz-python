@@ -306,44 +306,48 @@ class Solver(DifferentialEvolutionSolver):
             self._promote_lowest_energy()
 
         # do the optimization.
-        for nit in tqdm.tqdm(range(1, self.maxiter + 1)):
-            # evolve the population by a generation
-            try:
-                next(self)
-            except StopIteration:
-                warning_flag = True
-                if self._nfev > self.maxfun:
-                    status_message = _differentialevolution._status_message['maxfev']
-                elif self._nfev == self.maxfun:
-                    status_message = ('Maximum number of function evaluations'
-                                      ' has been reached.')
-                break
-
-            if self.disp:
-                print(f"differential_evolution step {nit}: f(x)="
-                      f" {self.population_energies[0]}",
-                      f"average {np.average(self.population_energies)}"
-                      )
-
-            if self.callback:
-                c = self.tol / (self.convergence + _differentialevolution._MACHEPS)
-                res = self._result(nit=nit, message="in progress")
-                res.convergence = c
+        progres_bar=hasattr(self,'progres_bar') and self.progres_bar
+        with tqdm.tqdm(total=self.maxiter, unit="it",disable=not progres_bar) as pbar:
+            for nit in range(1, self.maxiter + 1):
+                # evolve the population by a generation
                 try:
-                    warning_flag = bool(self.callback(res))
+                    next(self)
                 except StopIteration:
                     warning_flag = True
+                    if self._nfev > self.maxfun:
+                        status_message = _differentialevolution._status_message['maxfev']
+                    elif self._nfev == self.maxfun:
+                        status_message = ('Maximum number of function evaluations'
+                                        ' has been reached.')
+                    break
 
-                if warning_flag:
-                    status_message = 'callback function requested stop early'
+                if self.disp:
+                    print(f"differential_evolution step {nit}: f(x)="
+                        f" {self.population_energies[0]}",
+                        f"average {np.average(self.population_energies)}"
+                        )
+                if progres_bar:
+                    pbar.update(1)
+                    pbar.set_postfix({'f(x)':f'{self.population_energies[0]:.3e}','average':f'{np.average(self.population_energies):.3e}'})
+                if self.callback:
+                    c = self.tol / (self.convergence + _differentialevolution._MACHEPS)
+                    res = self._result(nit=nit, message="in progress")
+                    res.convergence = c
+                    try:
+                        warning_flag = bool(self.callback(res))
+                    except StopIteration:
+                        warning_flag = True
 
-            # should the solver terminate?
-            if warning_flag or self.converged():
-                break
+                    if warning_flag:
+                        status_message = 'callback function requested stop early'
 
-        else:
-            status_message = _differentialevolution._status_message['maxiter']
-            warning_flag = True
+                # should the solver terminate?
+                if warning_flag or self.converged():
+                    break
+
+            else:
+                status_message = _differentialevolution._status_message['maxiter']
+                warning_flag = True
 
         DE_result = self._result(
             nit=nit, message=status_message, warning_flag=warning_flag
@@ -413,7 +417,7 @@ class Solver(DifferentialEvolutionSolver):
 def differential_evolution(func, bounds, args=(), strategy='best1bin',
                            maxiter=1000, popsize=15, tol=0.01,
                            mutation=(0.5, 1), recombination=0.7, seed=None,
-                           callback=None, disp=False, polish=True,
+                           callback=None, disp=False,progres_bar:bool=False, polish=True,
                            init='latinhypercube', atol=0, updating='immediate',
                            workers=1, constraints=(), x0=None, *,
                            integrality=None, vectorized=False):
@@ -433,6 +437,7 @@ def differential_evolution(func, bounds, args=(), strategy='best1bin',
                                      x0=x0,
                                      integrality=integrality,
                                      vectorized=vectorized) as solver:
+        solver.progres_bar=progres_bar
         ret = solver.solve()
 
     return ret
@@ -516,7 +521,6 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
     initial_pop:npt.NDArray[np.floating] = np.concatenate([np.real(n_anltic[0]), np.real(-k_anltic[0]), [t_smpl0]])
-    print(len(initial_pop))
     np.clip(initial_pop,lb,ub,initial_pop)
     bounds = list(zip(lb, ub))
     args=(
@@ -535,8 +539,10 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
         x0=initial_pop,
         tol=0.0001,
         polish=False,
-        disp=True,
+        disp=False,
+        progres_bar=True,
         workers=-1,
+        updating='deferred'
     )
     print(result.message)
     d0_opt = result.x
@@ -555,35 +561,25 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     ax.set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
     ax.tick_params(axis='both', labelsize=12)
     for spine in ax.spines.values():
-        spine.set_linewidth(3)
+        spine.set_linewidth(1)
 
     ax_right = ax.twinx()
     ax_right.plot(f, k,color='orange')
     ax_right.set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
     ax_right.tick_params(axis='both', labelsize=12)
     for spine in ax_right.spines.values():
-        spine.set_linewidth(3)
+        spine.set_linewidth(1)
 
     plt.tight_layout()
-    ax.grid(True, axis='both', which='both')
+    ax.grid(True, axis='both')
     ax_right.grid(False)
     plt.savefig(f'result/{sample_name}_Results.png', dpi=300, bbox_inches='tight')
     plt.show()
-    # plt.figure()
-    # plt.plot(f, n, label='n (real part)', **plot_opts)
-    # plt.plot(f, k, label='k (imaginary part)', **plot_opts)
-    # plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
-    # plt.ylabel('Refractive Index', fontsize=16, fontweight='bold', fontname='Cambria')
-    # plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    # plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    # plt.legend(prop={'weight':'bold', 'family':'Cambria'})
-    # plt.grid(False)  # turn off grid
-    # plt.tight_layout()
-    # plt.show()
+
 
 
 
 if __name__ == '__main__':
     main(sample_name='H2O',
         pop_size=1,
-        maxit=10)
+        maxit=2000)
