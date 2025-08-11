@@ -587,5 +587,3 @@ if __name__ == '__main__':
     main(sample_name='H2O',
         pop_size=1,
         maxit=10)
-#TODO: do PA6
-
