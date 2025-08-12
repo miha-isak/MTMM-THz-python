@@ -1,21 +1,23 @@
-### Setup Instructions
+
+
+## Setup Instructions
 
 1. Download all project files from GitHub.
 
 2. Create a Python virtual environment:
-
-- **Windows (PowerShell):**  
-  `python -m venv venv`  
-  `.\venv\Scripts\Activate.ps1`
-
-- **Windows (cmd):**  
-  `python -m venv venv`  
-  `.\venv\Scripts\activate.bat`
-
-- **Linux / macOS:**  
-  `python3 -m venv venv`  
-  `source venv/bin/activate`
-
+   
+   - **Windows (PowerShell):**  
+     `python -m venv venv`  
+     `.\venv\Scripts\Activate.ps1`
+   
+   - **Windows (cmd):**  
+     `python -m venv venv`  
+     `.\venv\Scripts\activate.bat`
+   
+   - **Linux / macOS:**  
+     `python3 -m venv venv`  
+     `source venv/bin/activate`
+   
 3. Install dependencies:  
    `pip install -r requirements.txt`
 
@@ -23,7 +25,7 @@
    `python main.py`
 
 
-### Optional Settings
+## Optional Settings
 
 For higher accuracy (with increased runtime) or faster execution (with potentially lower accuracy), you can adjust the following parameters:
 PopSize – Population size. Increasing this improves accuracy but also increases runtime.
