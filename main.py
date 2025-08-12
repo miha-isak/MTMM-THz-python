@@ -418,7 +418,7 @@ def differential_evolution(func, bounds, args=(), strategy='best1bin',
                            maxiter=1000, popsize=15, tol=0.01,
                            mutation=(0.5, 1), recombination=0.7, seed=None,
                            callback=None, disp=False,progres_bar:bool=False, polish=True,
-                           init='latinhypercube', atol=0, updating='immediate',
+                           init='latinhypercube', atol:float=.0, updating='immediate',
                            workers=1, constraints=(), x0=None, *,
                            integrality=None, vectorized=False):
     rng=np.random.default_rng(seed)
@@ -443,7 +443,7 @@ def differential_evolution(func, bounds, args=(), strategy='best1bin',
     return ret
 
 
-def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01):
+def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,abs_tolerance:float=0):
     # === Structural Info ===
     reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data/{sample_name}_Reference.txt')
     sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data/{sample_name}_Sample.txt')
@@ -538,6 +538,7 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01)
         popsize=pop_size,
         x0=initial_pop,
         tol=tolerance,
+        atol=abs_tolerance,
         polish=False,
         disp=False,
         progres_bar=True,
@@ -585,4 +586,5 @@ if __name__ == '__main__':
     main(sample_name='H2O',
         pop_size=1,
         maxit=2000,
-        tolerance=1e-12)
+        tolerance=1e-12,
+        abs_tolerance=0.0)

@@ -28,8 +28,12 @@
 ## Optional Settings
 
 For higher accuracy (with increased runtime) or faster execution (with potentially lower accuracy), you can adjust the following parameters:
-PopSize – Population size. Increasing this improves accuracy but also increases runtime.
-Maxit – Maximum number of generations. More iterations yield better results but take longer to compute.
+
+- PopSize - Population size. Increasing this improves accuracy but also increases runtime.
+
+- Maxit - Maximum number of generations. More iterations yield better results but take longer to compute.
+
+- Tolerance and abs_Tolerance - The algorithm stops if the variation in population energies (standard deviation) is small enough, specifically when it’s less than or equal to $abs\_tolerance + tolerance * |mean\ energy|$
 
 You can also add your own data to the Data folder if needed. To do this:
 1. Create a JSON file similar to the existing ones. You can add or remove layers by editing the thickness and refractive index values as needed.
