@@ -443,7 +443,7 @@ def differential_evolution(func, bounds, args=(), strategy='best1bin',
     return ret
 
 
-def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
+def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01):
     # === Structural Info ===
     reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data/{sample_name}_Reference.txt')
     sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data/{sample_name}_Sample.txt')
@@ -537,7 +537,7 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
         maxiter=maxit,
         popsize=pop_size,
         x0=initial_pop,
-        tol=0.0001,
+        tol=tolerance,
         polish=False,
         disp=False,
         progres_bar=True,
@@ -546,13 +546,13 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     )
     print(result.message)
     d0_opt = result.x
-    plot_opts = {'linestyle': ':', 'marker': 'o', 'linewidth': 1.6}
+    error=result.fun
     n=d0_opt[:l]
     k=-d0_opt[l:2*l]
     # Plotting the real part (n_anltic)
-    if not os.path.exists('result'):
-        os.mkdir('result')
-    scipy.io.savemat(f'result/{sample_name}_Results.mat',{'d0':d0_opt})
+    if not os.path.exists('Results'):
+        os.mkdir('Results')
+    scipy.io.savemat(f'Results/{sample_name}_result.mat',{'n':n+1j*k,'f':f,'error':error})
 
     fig, ax = plt.subplots(figsize=(6, 5))
 
@@ -577,12 +577,12 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000):
     lines_ax, labels_ax = ax.get_legend_handles_labels()
     lines_right, labels_right = ax_right.get_legend_handles_labels()
     ax.legend(lines_ax + lines_right, labels_ax + labels_right, loc="upper right")
-    plt.savefig(f'result/{sample_name}_Results.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'Results/{sample_name}_result.png', dpi=300, bbox_inches='tight')
     plt.show()
 
 
 if __name__ == '__main__':
-    main(sample_name='PTFE',
-        pop_size=4,
-        maxit=2000)
-#TODO: element titles
+    main(sample_name='H2O',
+        pop_size=1,
+        maxit=2000,
+        tolerance=1e-12)
