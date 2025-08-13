@@ -566,8 +566,7 @@ def main(sample_name:str,
     scipy.io.savemat(f'Results/{sample_name}_result.mat',{'n':n+1j*k,'f':f,'error':error})
 
     fig, ax = plt.subplots(figsize=(6, 5))
-    plt.title(f'output {sample_name!r}')
-
+    ax.set_title(f"Result {sample_name}")
     ax.plot(f, n,color='blue', label="n")
     ax.set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
     ax.set_ylabel('Refractive index, n', fontsize=12, fontweight='bold', fontname='Arial')
