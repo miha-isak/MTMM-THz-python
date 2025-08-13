@@ -29,11 +29,11 @@
 
 For higher accuracy (with increased runtime) or faster execution (with potentially lower accuracy), you can adjust the following parameters:
 
-- PopSize - Population size. Increasing this improves accuracy but also increases runtime.
+- popsize - Population size. Increasing this improves accuracy but also increases runtime.
 
-- Maxit - Maximum number of generations. More iterations yield better results but take longer to compute.
+- maxit - Maximum number of generations. More iterations yield better results but take longer to compute.
 
-- Tolerance and abs_Tolerance - The algorithm stops if the variation in population energies (standard deviation) is small enough, specifically when it’s less than or equal to $abs\_tolerance + tolerance * |mean\ energy|$
+- tolerance and abs_tolerance - The algorithm stops if the variation in population energies (standard deviation) is small enough, specifically when it’s less than or equal to $abs\_tolerance + tolerance * |mean\ energy|$
 
 - workers - how many threads are being used by optimizer (-1 for all threads)
 
