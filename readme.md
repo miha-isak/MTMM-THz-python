@@ -35,6 +35,8 @@ For higher accuracy (with increased runtime) or faster execution (with potential
 
 - Tolerance and abs_Tolerance - The algorithm stops if the variation in population energies (standard deviation) is small enough, specifically when it’s less than or equal to $abs\_tolerance + tolerance * |mean\ energy|$
 
+- workers - how many threads are being used by optimizer (-1 for all threads)
+
 You can also add your own data to the Data folder if needed. To do this:
 1. Create a JSON file similar to the existing ones. You can add or remove layers by editing the thickness and refractive index values as needed.
 2. Include two time-domain data files (as .txt files):

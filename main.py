@@ -1,3 +1,4 @@
+
 import os
 import json
 import numpy as np
@@ -10,7 +11,7 @@ from scipy import optimize
 import os
 import warnings
 import tqdm
-
+import multiprocessing
 def time2freq(t_ref:npt.NDArray,
               E_ref:npt.NDArray,
               t_sam:npt.NDArray,
@@ -36,17 +37,19 @@ def time2freq(t_ref:npt.NDArray,
 
     # Plot time-domain signals
     plt.figure()
+    plt.title("")
     plt.plot(t_ref, E_ref, linewidth=3, label='E_Reference')
     plt.plot(t_sam, E_sam, linewidth=3, label='E_Sample')
     plt.legend(prop={'weight':'bold', 'family':'Cambria'})
     plt.grid(True)
-    # plt.tight_layout()
     # plt.show()
     plt.xlabel('Time (sec)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.legend()
+    plt.tight_layout()
+    plt.savefig("input.png")
 
 
     # Common time grid
@@ -128,14 +131,15 @@ def time2freq(t_ref:npt.NDArray,
     plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.legend()
     plt.grid(True)
+    plt.savefig("fft.png")
 
-    # Plot phase difference
-    plt.figure()
-    plt.plot(f * 1e-12, delta_phi, 'k', linewidth=1.5)
-    plt.xlabel('Frequency (THz)')
-    plt.ylabel('Phase Difference (rad)')
-    plt.title('Corrected Phase Difference')
-    plt.grid(True)
+    # # Plot phase difference
+    # plt.figure()
+    # plt.plot(f * 1e-12, delta_phi, 'k', linewidth=1.5)
+    # plt.xlabel('Frequency (THz)')
+    # plt.ylabel('Phase Difference (rad)')
+    # plt.title('Corrected Phase Difference')
+    # plt.grid(True)
 
     # Save data
     c = 299792458  # speed of light (m/s)
@@ -266,6 +270,7 @@ def MTMM(d:npt.NDArray,
 
 
 class Solver(DifferentialEvolutionSolver):
+   progress_bar=False
    def solve(self):
         """
         Runs the DifferentialEvolutionSolver.
@@ -306,8 +311,7 @@ class Solver(DifferentialEvolutionSolver):
             self._promote_lowest_energy()
 
         # do the optimization.
-        progres_bar=hasattr(self,'progres_bar') and self.progres_bar
-        with tqdm.tqdm(total=self.maxiter, unit="it",disable=not progres_bar) as pbar:
+        with tqdm.tqdm(total=self.maxiter, unit="it",disable=not self.progress_bar) as p_bar:
             for nit in range(1, self.maxiter + 1):
                 # evolve the population by a generation
                 try:
@@ -326,9 +330,9 @@ class Solver(DifferentialEvolutionSolver):
                         f" {self.population_energies[0]}",
                         f"average {np.average(self.population_energies)}"
                         )
-                if progres_bar:
-                    pbar.update(1)
-                    pbar.set_postfix({'f(x)':f'{self.population_energies[0]:.3e}','average':f'{np.average(self.population_energies):.3e}'})
+                if self.progress_bar:
+                    p_bar.update(1)
+                    p_bar.set_postfix({'f(x)':f'{self.population_energies[0]:.3e}','average':f'{np.average(self.population_energies):.3e}'})
                 if self.callback:
                     c = self.tol / (self.convergence + _differentialevolution._MACHEPS)
                     res = self._result(nit=nit, message="in progress")
@@ -417,7 +421,7 @@ class Solver(DifferentialEvolutionSolver):
 def differential_evolution(func, bounds, args=(), strategy='best1bin',
                            maxiter=1000, popsize=15, tol=0.01,
                            mutation=(0.5, 1), recombination=0.7, seed=None,
-                           callback=None, disp=False,progres_bar:bool=False, polish=True,
+                           callback=None, disp=False,progress_bar:bool=False, polish=True,
                            init='latinhypercube', atol:float=.0, updating='immediate',
                            workers=1, constraints=(), x0=None, *,
                            integrality=None, vectorized=False):
@@ -430,20 +434,25 @@ def differential_evolution(func, bounds, args=(), strategy='best1bin',
                                      recombination=recombination,
                                      rng=rng, polish=polish,
                                      callback=callback,
-                                     disp=disp, init=init, atol=atol,
+                                     disp=disp, init=init, atol=atol, # type: ignore
                                      updating=updating,
                                      workers=workers,
                                      constraints=constraints,
                                      x0=x0,
                                      integrality=integrality,
                                      vectorized=vectorized) as solver:
-        solver.progres_bar=progres_bar
+        solver.progress_bar=progress_bar
         ret = solver.solve()
 
     return ret
 
 
-def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,abs_tolerance:float=0):
+def main(sample_name:str,
+         pop_size:int = 2,
+         maxit:int = 1000,
+         workers:int=-1,
+         tolerance:float=0.01,
+         abs_tolerance:float=0):
     # === Structural Info ===
     reference:npt.NDArray[np.floating] = np.loadtxt(rf'Data/{sample_name}_Reference.txt')
     sample:npt.NDArray[np.floating]  = np.loadtxt(rf'Data/{sample_name}_Sample.txt')
@@ -475,7 +484,7 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,
     delta_phi:npt.NDArray[np.floating] = tmp['delta_phi'].flatten()
     dtpeaks:float   = tmp['dtpeaks'].flatten()[0]
     dT:float        = tmp['dT'].flatten()[0]
-    lambda0:npt.NDArray[np.floating]   = tmp['lambda0']
+    lambda0:npt.NDArray[np.floating]   = tmp['lambda0'].flatten()
     l:int = lambda0.size
     nn0:float = 1 + c * dtpeaks / (t_smpl0 * 1e-9)
     neff = nk.copy()
@@ -485,42 +494,42 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,
     ph = np.arange(6)
     delta_phi_values = 2 * np.pi * np.floor((ph + 1) / 2) * (-1) ** ph
 
-    n_anltic_list:list[npt.NDArray[np.complexfloating]] = []
-    k_anltic_list:list[npt.NDArray[np.complexfloating]] = []
+    n_analytic_list:list[npt.NDArray[np.complexfloating]] = []
+    k_analytic_list:list[npt.NDArray[np.complexfloating]] = []
 
     for delta_add in delta_phi_values:
         delta_add:float
         delta_phi2 = delta_phi + delta_add
-        n_anlt = (nr + c * delta_phi2 / (2 * np.pi * f * t_smpl0 * 1e-9)).astype(complex)
-        constnt = (4 * n_anlt * nr) / ((np.abs(EsovEr) * (n_anlt + nr)**2))
-        k_anlt = (c / (2 * np.pi * f * t_smpl0 * 1e-9)) * np.log(constnt.astype(complex))
-        n_anltic_list.append(n_anlt)
-        k_anltic_list.append(k_anlt)
+        n_analytic = (nr + c * delta_phi2 / (2 * np.pi * f * t_smpl0 * 1e-9)).astype(complex)
+        constant = (4 * n_analytic * nr) / ((np.abs(EsovEr) * (n_analytic + nr)**2))
+        k_analytic = (c / (2 * np.pi * f * t_smpl0 * 1e-9)) * np.log(constant.astype(complex))
+        n_analytic_list.append(n_analytic)
+        k_analytic_list.append(k_analytic)
 
     # scipy.io.savemat(r'Test.mat', {
     #     **mat,
-    #     'n_anltic': np.array(n_anltic),
-    #     'k_anltic': np.array(k_anltic)
+    #     'n_analytic': np.array(n_analytic),
+    #     'k_analytic': np.array(k_analytic)
     # })
 
 
-    n_anltic = np.array(n_anltic_list)
-    k_anltic = np.array(k_anltic_list)
+    n_analytic = np.array(n_analytic_list)
+    k_analytic = np.array(k_analytic_list)
 
-    nhalf:npt.NDArray[np.complexfloating] = np.array([(n_anltic[0] + n_anltic[1]) / 2,
-            (n_anltic[0] + n_anltic[2]) / 2])
+    n_half:npt.NDArray[np.complexfloating] = np.array([(n_analytic[0] + n_analytic[1]) / 2,
+            (n_analytic[0] + n_analytic[2]) / 2])
     
     lb:npt.NDArray[np.floating] = np.concatenate([
-        np.min(np.real(nhalf),axis=0),                                # scalar → 1D
-        -2 * np.max(np.abs(k_anltic)) * np.ones(l),              # already 1D
+        np.min(np.real(n_half),axis=0),                                # scalar → 1D
+        -2 * np.max(np.abs(k_analytic)) * np.ones(l),              # already 1D
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
     ub:npt.NDArray[np.floating] = np.concatenate([
-        np.max(np.real(nhalf),axis=0),                                # scalar → 1D
+        np.max(np.real(n_half),axis=0),                                # scalar → 1D
         np.zeros(l),              # already 1D
         [t_smpl0]                                                 # scalar → 1D
     ]).flatten()
-    initial_pop:npt.NDArray[np.floating] = np.concatenate([np.real(n_anltic[0]), np.real(-k_anltic[0]), [t_smpl0]])
+    initial_pop:npt.NDArray[np.floating] = np.concatenate([np.real(n_analytic[0]), np.real(-k_analytic[0]), [t_smpl0]])
     np.clip(initial_pop,lb,ub,initial_pop)
     bounds = list(zip(lb, ub))
     args=(
@@ -541,21 +550,22 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,
         atol=abs_tolerance,
         polish=False,
         disp=False,
-        progres_bar=True,
-        workers=-1,
-        updating='deferred'
+        progress_bar=True,
+        workers=workers,
+        updating='deferred',
     )
     print(result.message)
     d0_opt = result.x
     error=result.fun
     n=d0_opt[:l]
     k=-d0_opt[l:2*l]
-    # Plotting the real part (n_anltic)
+    # Plotting the real part (n_analytic)
     if not os.path.exists('Results'):
         os.mkdir('Results')
     scipy.io.savemat(f'Results/{sample_name}_result.mat',{'n':n+1j*k,'f':f,'error':error})
 
     fig, ax = plt.subplots(figsize=(6, 5))
+    plt.title(sample_name)
 
     ax.plot(f, n,color='blue', label="n")
     ax.set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
@@ -583,8 +593,10 @@ def main(sample_name:str,pop_size:int = 2,maxit:int = 1000,tolerance:float=0.01,
 
 
 if __name__ == '__main__':
-    main(sample_name='H2O',
+    # multiprocessing.set_start_method("spawn")
+    main(sample_name='SiO2',
         pop_size=1,
-        maxit=2000,
-        tolerance=1e-12,
-        abs_tolerance=0.0)
+        maxit=3000,
+        tolerance=1e-20,
+        abs_tolerance=0.0,
+        workers=-1)
