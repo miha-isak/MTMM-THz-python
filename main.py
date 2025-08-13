@@ -11,7 +11,8 @@ from scipy import optimize
 import os
 import warnings
 import tqdm
-import multiprocessing
+
+
 def time2freq(t_ref:npt.NDArray,
               E_ref:npt.NDArray,
               t_sam:npt.NDArray,
@@ -35,21 +36,7 @@ def time2freq(t_ref:npt.NDArray,
     t_ref-=np.min(t_ref)
     t_sam-=np.min(t_sam)
 
-    # Plot time-domain signals
-    plt.figure()
-    plt.title("")
-    plt.plot(t_ref, E_ref, linewidth=3, label='E_Reference')
-    plt.plot(t_sam, E_sam, linewidth=3, label='E_Sample')
-    plt.legend(prop={'weight':'bold', 'family':'Cambria'})
-    plt.grid(True)
-    # plt.show()
-    plt.xlabel('Time (sec)', fontsize=16, fontweight='bold', fontname='Cambria')
-    plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
-    plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("input.png")
+    
 
 
     # Common time grid
@@ -124,14 +111,14 @@ def time2freq(t_ref:npt.NDArray,
     plt.figure()
     plt.plot(f, np.log10(np.abs(E_ref_from_fft)), linewidth=3, label='E_Reference')
     plt.plot(f, np.log10(np.abs(E_sam_from_fft)), linewidth=3, label='E_Sample')
-    #plt.title('One-sided Fourier Transform')
+    # plt.title('One-sided Fourier Transform')
     plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
     plt.legend()
     plt.grid(True)
-    plt.savefig("fft.png")
+    # plt.savefig("fft.png")
 
     # # Plot phase difference
     # plt.figure()
@@ -471,12 +458,26 @@ def main(sample_name:str,
     # === Time-domain to Frequency-domain ===
     t_file_ref = reference[:, 0] * 1e-12
     E_file_ref = reference[:, 1]
-    t_file_sig = sample[:, 0] * 1e-12
-    E_file_sig = sample[:, 1]
+    t_file_sample = sample[:, 0] * 1e-12
+    E_file_sample = sample[:, 1]
     
+    # Plot time-domain signals
+    plt.figure()
+    plt.title("input data")
+    plt.plot(t_file_ref, E_file_ref, linewidth=3, label='E_Reference')
+    plt.plot(t_file_sample, E_file_sample, linewidth=3, label='E_Sample')
+    plt.legend(prop={'weight':'bold', 'family':'Cambria'})
+    plt.grid(True)
+    # plt.show()
+    plt.xlabel('Time (sec)', fontsize=16, fontweight='bold', fontname='Cambria')
+    plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
+    plt.xticks(fontsize=12, fontweight='bold', fontname='Cambria')
+    plt.yticks(fontsize=12, fontweight='bold', fontname='Cambria')
+    plt.legend()
+    plt.tight_layout()
+    # plt.savefig("input.png")
 
-
-    tmp:dict[str,npt.NDArray|float] = time2freq(t_file_ref, E_file_ref, t_file_sig, E_file_sig, minTHz, maxTHz)
+    tmp:dict[str,npt.NDArray|float] = time2freq(t_file_ref, E_file_ref, t_file_sample, E_file_sample, minTHz, maxTHz)
 
     # === Load Data and Analytical n,k Extraction ===
     EsovEr:npt.NDArray[np.floating]    = tmp['EsovEr'].flatten()
@@ -565,7 +566,7 @@ def main(sample_name:str,
     scipy.io.savemat(f'Results/{sample_name}_result.mat',{'n':n+1j*k,'f':f,'error':error})
 
     fig, ax = plt.subplots(figsize=(6, 5))
-    plt.title(sample_name)
+    plt.title(f'output {sample_name!r}')
 
     ax.plot(f, n,color='blue', label="n")
     ax.set_xlabel('Frequency (THz)', fontsize=12, fontweight='bold', fontname='Arial')
@@ -593,10 +594,9 @@ def main(sample_name:str,
 
 
 if __name__ == '__main__':
-    # multiprocessing.set_start_method("spawn")
-    main(sample_name='SiO2',
+    main(sample_name='PA6',
         pop_size=1,
-        maxit=3000,
+        maxit=1,
         tolerance=1e-20,
         abs_tolerance=0.0,
         workers=-1)
