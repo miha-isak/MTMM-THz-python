@@ -109,8 +109,8 @@ def time2freq(t_ref:npt.NDArray,
 
     # Plot FFT magnitude
     plt.figure()
-    plt.plot(f, np.log10(np.abs(E_ref_from_fft)), linewidth=3, label='E_Reference')
-    plt.plot(f, np.log10(np.abs(E_sam_from_fft)), linewidth=3, label='E_Sample')
+    plt.plot(f, np.log10(np.abs(E_ref_from_fft)), linewidth=1.5, label='E_Reference',color = "orange")
+    plt.plot(f, np.log10(np.abs(E_sam_from_fft)), linewidth=1.5, label='E_Sample',color = "blue")
     # plt.title('One-sided Fourier Transform')
     plt.xlabel('Frequency (Hz)', fontsize=16, fontweight='bold', fontname='Cambria')
     plt.ylabel('Electric field intensity (a.u.)', fontsize=16, fontweight='bold', fontname='Cambria')
@@ -464,8 +464,8 @@ def main(sample_name:str,
     # Plot time-domain signals
     plt.figure()
     plt.title("input data")
-    plt.plot(t_file_ref, E_file_ref, linewidth=3, label='E_Reference')
-    plt.plot(t_file_sample, E_file_sample, linewidth=3, label='E_Sample')
+    plt.plot(t_file_ref, E_file_ref, linewidth=1.5, label='E_Reference',color = "orange")
+    plt.plot(t_file_sample, E_file_sample, linewidth=1.5, label='E_Sample', color = "blue")
     plt.legend(prop={'weight':'bold', 'family':'Cambria'})
     plt.grid(True)
     # plt.show()
@@ -573,14 +573,14 @@ def main(sample_name:str,
     ax.tick_params(axis='both', labelsize=12)
     plt.legend(loc="upper right")
     for spine in ax.spines.values():
-        spine.set_linewidth(1)
+        spine.set_linewidth(1.5)
 
     ax_right = ax.twinx()
     ax_right.plot(f, k,color='orange',label="k")
     ax_right.set_ylabel('Extinction coefficient, k', fontsize=12, fontweight='bold', fontname='Arial')
     ax_right.tick_params(axis='both', labelsize=12)
     for spine in ax_right.spines.values():
-        spine.set_linewidth(1)
+        spine.set_linewidth(1.5)
 
     plt.tight_layout()
     ax.grid(True, axis='both')
@@ -595,7 +595,7 @@ def main(sample_name:str,
 if __name__ == '__main__':
     main(sample_name='PA6',
         pop_size=1,
-        maxit=1,
+        maxit=4000,
         tolerance=1e-20,
         abs_tolerance=0.0,
         workers=-1)
