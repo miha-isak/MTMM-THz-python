@@ -1,4 +1,4 @@
-
+**Code transferred from MATLAB to Python by Mykhailo Isak and Mykola Voloshyn.**
 
 ## Setup Instructions
 
@@ -43,5 +43,3 @@ You can also add your own data to the Data folder if needed. To do this:
    - One for the reference measurement
    - One for the sample measurement
 These files should contain the time-dependent experimental data and must also be placed in the Data folder.
-
-**Code transferred from MATLAB to Python by Mykhailo Isak and Mykola Voloshyn.**
